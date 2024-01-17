@@ -3,8 +3,8 @@ const cors = require("cors");
 
 const app = express();
 
-app.use(express.json());
 app.use(cors());
+app.use(express.json()); // latest version of exressJS now comes with Body-Parser!
 
 const db = {
   users: [
@@ -34,10 +34,8 @@ app.get("/", (req, res) => {
 });
 
 app.post("/signin", (req, res) => {
-  if (
-    req.body.email === db.users[0].email &&
-    req.body.password === db.users[0].password
-  ) {
+  const { email, password } = req.body;
+  if (email === db.users[0].email && password === db.users[0].password) {
     res.json(db.users[0]);
   } else {
     res.status(400).json("error logging in");
