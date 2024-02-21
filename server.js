@@ -28,10 +28,10 @@ app.post("/register", (req, res) => {
   var salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(password, salt);
   // add the user to the db
-  const newUser = { id: users.length + 1, name, email, hash, activity: 0 };
-  users.push(newUser);
+  const user = { id: users.length + 1, name, email, hash, activity: 0 };
+  users.push(user);
   // Generate JWT token
-  const token = jwt.sign({ userId: newUser.id }, secretKey);
+  const token = jwt.sign({ user }, secretKey);
   res.json({ token });
   console.log("successfully registered new user");
 });
@@ -45,31 +45,50 @@ app.post("/signin", (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
   user.activity++;
-  console.log(user, "signed in");
   // Generate JWT token
-  const token = jwt.sign({ userId: user.id }, secretKey);
+  const token = jwt.sign({ user }, secretKey);
   res.json({ token });
 });
 
 // Design of protected route (needs JWT)
+// if token is valid, return protected data
 app.get("/protected", verifyToken, (req, res) => {
-  // if token is valid, return protected data
-  res.json({ data: "this is protected data" });
+  jwt.verify(req.token, secretKey, (err, decoded) => {
+    if (err) {
+      //If error send Forbidden (403)
+      console.log("ERROR: Could not connect to the protected route");
+      res.sendStatus(403);
+    } else {
+      const { id, name } = decoded.user;
+      console.log(id, name);
+      //If token is successfully verified, we can send the autorized data
+      res.json({
+        message: "Successful log in",
+        id,
+        name,
+      });
+      console.log("SUCCESS: Connected to protected route");
+    }
+  });
 });
 
 // Verify JWT token middleware
 function verifyToken(req, res, next) {
-  const token = req.headers["authorization"];
-  if (!token) {
+  console.log("verifying token");
+  const header = req.headers["authorization"];
+  if (!header) {
     return res.status(403).json({ error: "Token is required" });
   }
-  jwt.verify(token, secretKey, (err, decoded) => {
-    if (err) {
-      return res.status(401).json({ error: "Token is not valid" });
-    }
-    req.userId = decoded.userId;
+  if (typeof header !== "undefined") {
+    const bearer = header.split(" ");
+    const token = bearer[1];
+
+    req.token = token;
     next();
-  });
+  } else {
+    //If header is undefined return Forbidden (403)
+    res.sendStatus(403);
+  }
 }
 
 app.listen(3000, () => {
