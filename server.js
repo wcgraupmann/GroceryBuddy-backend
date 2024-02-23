@@ -31,7 +31,7 @@ app.post("/register", (req, res) => {
   const user = { id: users.length + 1, name, email, hash, activity: 0 };
   users.push(user);
   // Generate JWT token
-  const token = jwt.sign({ user }, secretKey);
+  const token = jwt.sign({ user }, secretKey, { expiresIn: "1h" });
   res.json({ token });
   console.log("successfully registered new user");
 });
@@ -46,7 +46,7 @@ app.post("/signin", (req, res) => {
   }
   user.activity++;
   // Generate JWT token
-  const token = jwt.sign({ user }, secretKey);
+  const token = jwt.sign({ user }, secretKey, { expiresIn: "1h" });
   res.json({ token });
 });
 
