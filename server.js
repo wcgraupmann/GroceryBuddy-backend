@@ -28,7 +28,14 @@ app.post("/register", (req, res) => {
   var salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(password, salt);
   // add the user to the db
-  const user = { id: users.length + 1, name, email, hash, activity: 0 };
+  const user = {
+    id: users.length + 1,
+    name,
+    email,
+    hash,
+    activity: 0,
+    groceryList: [],
+  };
   users.push(user);
   // Generate JWT token
   const token = jwt.sign({ user }, secretKey, { expiresIn: "1h" });
@@ -50,6 +57,56 @@ app.post("/signin", (req, res) => {
   res.json({ token });
 });
 
+// fetch user's grocery list
+app.get("/groceryList", verifyToken, (req, res) => {
+  jwt.verify(req.token, secretKey, (err, decoded) => {
+    if (err) {
+      //If error send Forbidden (403)
+      console.log("ERROR: Could not connect to the protected route");
+      res.sendStatus(403);
+    } else {
+      const { groceryList } = decoded.user;
+      console.log(groceryList);
+      //If token is successfully verified, we can send the autorized data
+      res.json({
+        message: "Successful log in",
+        groceryList,
+      });
+      console.log("SUCCESS: Connected to /groceryList");
+    }
+  });
+});
+
+// add item to user's grocery list
+app.post("/addItem", verifyToken, (req, res) => {
+  jwt.verify(req.token, secretKey, (err, decoded) => {
+    if (err) {
+      //If error send Forbidden (403)
+      console.log("ERROR: Could not connect to the protected route");
+      res.sendStatus(403);
+    } else {
+      console.log("decoded.user", decoded.user);
+      // console.log("req.body", req.body);
+      const addItem = req.body;
+      // console.log("addItem", addItem);
+      const { groceryList } = decoded.user;
+      // console.log("existing groceryList", groceryList);
+      groceryList.push(addItem);
+      decoded.user = {
+        ...decoded.user,
+        groceryList,
+      };
+      console.log("decoded.user", decoded.user);
+      //If token is successfully verified, we can send the autorized data
+      res.json({
+        message: "Successfully added item",
+        groceryList,
+      });
+      console.log("SUCCESS: Connected to /addItem");
+    }
+  });
+});
+
 // Design of protected route (needs JWT)
 // if token is valid, return protected data
 app.get("/protected", verifyToken, (req, res) => {
@@ -59,13 +116,14 @@ app.get("/protected", verifyToken, (req, res) => {
       console.log("ERROR: Could not connect to the protected route");
       res.sendStatus(403);
     } else {
-      const { id, name } = decoded.user;
-      console.log(id, name);
+      const { id, name, groceryList } = decoded.user;
+      console.log(id, name, groceryList);
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successful log in",
         id,
         name,
+        groceryList,
       });
       console.log("SUCCESS: Connected to protected route");
     }
