@@ -12,6 +12,20 @@ const secretKey = "your_secret_key";
 // example user data with hashed passwords
 const users = [];
 
+// function to find user in db
+const getUser = (email) => {
+  console.log("db of users", users);
+  console.log("users[0]", users[0]);
+  console.log("users[0].email", users[0].email);
+  console.log(
+    "find method",
+    users.find((user) => user.email === email)
+  );
+
+  const u = users.find((user) => user.email === email);
+  return u;
+};
+
 // endpoint to check existing users (dev only)
 app.get("/", (req, res) => {
   res.json(users);
@@ -65,7 +79,11 @@ app.get("/groceryList", verifyToken, (req, res) => {
       console.log("ERROR: Could not connect to the protected route");
       res.sendStatus(403);
     } else {
-      const { groceryList } = decoded.user;
+      const { email } = decoded.user;
+      // access decoded user from db of users
+      const foundUser = getUser(email);
+      // const { groceryList } = decoded.user;
+      const { groceryList } = foundUser;
       console.log(groceryList);
       //If token is successfully verified, we can send the autorized data
       res.json({
@@ -86,21 +104,24 @@ app.post("/addItem", verifyToken, (req, res) => {
       res.sendStatus(403);
     } else {
       console.log("decoded.user", decoded.user);
-      // console.log("req.body", req.body);
+      const { email } = decoded.user;
+      // access decoded user from db of users
+      let foundUser = getUser(email);
       const addItem = req.body;
       // console.log("addItem", addItem);
-      const { groceryList } = decoded.user;
+      const { groceryList } = foundUser;
       // console.log("existing groceryList", groceryList);
       groceryList.push(addItem);
-      decoded.user = {
-        ...decoded.user,
-        groceryList,
-      };
+      // decoded.user = {
+      //   ...decoded.user,
+      //   groceryList,
+      // };
       console.log("decoded.user", decoded.user);
+      console.log("user db[0]", users[0]);
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully added item",
-        groceryList,
+        // groceryList,
       });
       console.log("SUCCESS: Connected to /addItem");
     }
