@@ -11,6 +11,7 @@ const secretKey = "your_secret_key";
 
 // example user data with hashed passwords
 const users = [];
+console.log(users);
 
 // function to find user in db
 const getUser = (email) => {
@@ -48,7 +49,18 @@ app.post("/register", (req, res) => {
     email,
     hash,
     activity: 0,
-    groceryList: [],
+    groceryList: {
+      // numItems: 0,
+      // produce: [],
+      // meat: [],
+      // baking: [],
+      // bread: [],
+      // dairy: [],
+      // frozen: [],
+      // condiments: [],
+      // canned: [],
+      // misc: [],
+    },
   };
   users.push(user);
   // Generate JWT token
@@ -107,11 +119,17 @@ app.post("/addItem", verifyToken, (req, res) => {
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const addItem = req.body;
+      const { category, item, quantity } = req.body;
       // console.log("addItem", addItem);
       const { groceryList } = foundUser;
       // console.log("existing groceryList", groceryList);
-      groceryList.push(addItem);
+      console.log("category in groceryList = ", category in groceryList);
+      if (category in groceryList) {
+        groceryList[category].push({ item, quantity });
+      } else {
+        groceryList[category] = [{ item, quantity }];
+      }
+
       // decoded.user = {
       //   ...decoded.user,
       //   groceryList,
