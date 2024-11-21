@@ -146,6 +146,78 @@ app.post("/addItem", verifyToken, (req, res) => {
   });
 });
 
+// add item to delete item from user's grocery list
+app.delete("/deleteItem", verifyToken, (req, res) => {
+  jwt.verify(req.token, secretKey, (err, decoded) => {
+    if (err) {
+      //If error send Forbidden (403)
+      console.log("ERROR: Could not connect to the protected route");
+      res.sendStatus(403);
+    } else {
+      console.log("decoded.user", decoded.user);
+      const { email } = decoded.user;
+      // access decoded user from db of users
+      let foundUser = getUser(email);
+      const { index, category } = req.body;
+      // console.log("addItem", addItem);
+      const { groceryList } = foundUser;
+
+      console.log("category", category, "index", index);
+
+      const itemToDelete = groceryList[category][index];
+      console.log("itemToDelete", itemToDelete);
+      console.log("current grocery list:\n", groceryList);
+
+      groceryList[category].splice(index, 1);
+      console.log("new grocery list:\n", groceryList);
+
+      //If token is successfully verified, we can send the autorized data
+      res.json({
+        message: "Successfully deleted item",
+        deletedItem: itemToDelete,
+        // groceryList,
+      });
+      console.log("SUCCESS: Connected to /deleteItem");
+    }
+  });
+});
+
+// add item to edit item from user's grocery list
+app.put("/editItem", verifyToken, (req, res) => {
+  jwt.verify(req.token, secretKey, (err, decoded) => {
+    if (err) {
+      //If error send Forbidden (403)
+      console.log("ERROR: Could not connect to the protected route");
+      res.sendStatus(403);
+    } else {
+      console.log("decoded.user", decoded.user);
+      const { email } = decoded.user;
+      // access decoded user from db of users
+      let foundUser = getUser(email);
+      const { item, quantity, index, category } = req.body;
+      // console.log("addItem", addItem);
+      const { groceryList } = foundUser;
+
+      console.log(
+        "groceryList[category][index]:\n",
+        groceryList[category][index]
+      );
+      groceryList[category][index] = {
+        item: item,
+        quantity: quantity,
+      };
+      console.log("editItem\n", groceryList);
+
+      //If token is successfully verified, we can send the autorized data
+      res.json({
+        message: "Successfully edited item",
+        // groceryList,
+      });
+      console.log("SUCCESS: Connected to /editItem");
+    }
+  });
+});
+
 // Design of protected route (needs JWT)
 // if token is valid, return protected data
 app.get("/protected", verifyToken, (req, res) => {
