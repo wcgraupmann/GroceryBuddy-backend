@@ -11,13 +11,13 @@ const secretKey = "your_secret_key";
 
 // example user data with hashed passwords
 const users = [];
-console.log(users);
+// console.log(users);
 
 // function to find user in db
 const getUser = (email) => {
-  console.log("db of users", users);
-  console.log("users[0]", users[0]);
-  console.log("users[0].email", users[0].email);
+  // console.log("db of users", users);
+  // console.log("users[0]", users[0]);
+  // console.log("users[0].email", users[0].email);
   console.log(
     "find method",
     users.find((user) => user.email === email)
@@ -49,18 +49,8 @@ app.post("/register", (req, res) => {
     email,
     hash,
     activity: 0,
-    groceryList: {
-      // numItems: 0,
-      // produce: [],
-      // meat: [],
-      // baking: [],
-      // bread: [],
-      // dairy: [],
-      // frozen: [],
-      // condiments: [],
-      // canned: [],
-      // misc: [],
-    },
+    groceryList: {},
+    recipes: {},
   };
   users.push(user);
   // Generate JWT token
@@ -78,6 +68,7 @@ app.post("/signin", (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
   user.activity++;
+  console.log("successfully logged in");
   // Generate JWT token
   const token = jwt.sign({ user }, secretKey, { expiresIn: "1h" });
   res.json({ token });
@@ -95,12 +86,13 @@ app.get("/groceryList", verifyToken, (req, res) => {
       // access decoded user from db of users
       const foundUser = getUser(email);
       // const { groceryList } = decoded.user;
-      const { groceryList } = foundUser;
-      console.log(groceryList);
+      const { recipes } = foundUser;
+      // console.log("recipes\n", recipes);
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successful log in",
-        groceryList,
+        // groceryList,
+        recipes,
       });
       console.log("SUCCESS: Connected to /groceryList");
     }
@@ -115,27 +107,72 @@ app.post("/addItem", verifyToken, (req, res) => {
       console.log("ERROR: Could not connect to the protected route");
       res.sendStatus(403);
     } else {
-      console.log("decoded.user", decoded.user);
+      // console.log("decoded.user", decoded.user);
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const { category, item, quantity } = req.body;
+      const {
+        // category,
+        item,
+        // quantity,
+        recipe,
+      } = req.body;
       // console.log("addItem", addItem);
-      const { groceryList } = foundUser;
+      const { recipes } = foundUser;
       // console.log("existing groceryList", groceryList);
-      console.log("category in groceryList = ", category in groceryList);
-      if (category in groceryList) {
-        groceryList[category].push({ item, quantity });
+      // console.log("category in groceryList = ", category in groceryList);
+      // if (category in groceryList) {
+      //   groceryList[category].push({ item, quantity });
+      // } else {
+      //   groceryList[category] = [{ item, quantity }];
+      // }
+      var salt = bcrypt.genSaltSync(10);
+      const itemHash = bcrypt.hashSync(item, salt);
+
+      if (recipe.length !== 0) {
+        if (!recipes[recipe]) {
+          recipes[recipe] = [
+            {
+              id: itemHash,
+              item,
+              // quantity,
+              type: "individual item",
+            },
+          ];
+        } else {
+          recipes[recipe].push({
+            id: itemHash,
+            item,
+            // quantity,
+            type: "individual item",
+          });
+        }
       } else {
-        groceryList[category] = [{ item, quantity }];
+        if (!recipes["misc"]) {
+          recipes["misc"] = [
+            {
+              id: itemHash,
+              item,
+              // quantity,
+              type: "recipe item",
+            },
+          ];
+        } else {
+          recipes["misc"].push({
+            id: itemHash,
+            item,
+            // quantity,
+            type: "recipe item",
+          });
+        }
       }
 
       // decoded.user = {
       //   ...decoded.user,
       //   groceryList,
       // };
-      console.log("decoded.user", decoded.user);
-      console.log("user db[0]", users[0]);
+      // console.log("decoded.user", decoded.user);
+      // console.log("user db[0]", users[0]);
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully added item",
@@ -154,27 +191,68 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
       console.log("ERROR: Could not connect to the protected route");
       res.sendStatus(403);
     } else {
-      console.log("decoded.user", decoded.user);
+      // console.log("decoded.user", decoded.user);
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const { index, category } = req.body;
+      const {
+        item,
+        //  category,
+        recipe,
+      } = req.body;
       // console.log("addItem", addItem);
-      const { groceryList } = foundUser;
+      const { recipes } = foundUser;
 
-      console.log("category", category, "index", index);
+      // console.log("category to delete from", category, "index", index);
+      // console.log("recipe to delete from", recipe, "index", index);
 
-      const itemToDelete = groceryList[category][index];
-      console.log("itemToDelete", itemToDelete);
-      console.log("current grocery list:\n", groceryList);
+      // if (category.length !== 0) {
+      //   const itemToDelete = groceryList[category][index];
+      //   groceryList[category].splice(index, 1);
+      //   const deleteId = { key: "", index: 0 };
+      //   Object.keys(recipes).forEach((key) => {
+      //     key.find((item, index) => {
+      //       if (item.id === itemToDelete.id) {
+      //         deleteId.key = key;
+      //         deleteId.index = index;
+      //       }
+      //     });
+      //   });
+      //   recipes[deleteId.key].splice(deleteId.index, 1);
+      // } else {
 
-      groceryList[category].splice(index, 1);
-      console.log("new grocery list:\n", groceryList);
+      let indexToDelete = -1;
+      recipes[recipe].find((oldItem, index) => {
+        console.log("oldItem.item", oldItem.item);
+        console.log("item to delete", item);
+        console.log("oldItem.item === item", oldItem.item === item);
+        if (oldItem.item === item) {
+          console.log("INDEX", index);
+          indexToDelete = index;
+        }
+      });
+      console.log("Inded after", indexToDelete);
+      recipes[recipe].splice(indexToDelete, 1);
+
+      if (recipes[recipe].length === 0) {
+        delete recipes.recipe;
+      }
+      //   const deleteId = { key: "", index: 0 };
+      //   Object.keys(groceryList).forEach((key) => {
+      //     key.find((item, index) => {
+      //       if (item.id === itemToDelete.id) {
+      //         deleteId.key = key;
+      //         deleteId.index = index;
+      //       }
+      //     });
+      //   });
+      //   groceryList[deleteId.key].splice(deleteId.index, 1);
+      // }
 
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully deleted item",
-        deletedItem: itemToDelete,
+        // deletedItem: itemToDelete,
         // groceryList,
       });
       console.log("SUCCESS: Connected to /deleteItem");
@@ -194,19 +272,40 @@ app.put("/editItem", verifyToken, (req, res) => {
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const { item, quantity, index, category } = req.body;
+      const {
+        item,
+        //  quantity,
+        newItem,
+        recipe,
+      } = req.body;
       // console.log("addItem", addItem);
-      const { groceryList } = foundUser;
+      const { recipes } = foundUser;
 
-      console.log(
-        "groceryList[category][index]:\n",
-        groceryList[category][index]
-      );
-      groceryList[category][index] = {
-        item: item,
-        quantity: quantity,
-      };
-      console.log("editItem\n", groceryList);
+      // console.log(
+      //   "groceryList[category][index]:\n",
+      //   groceryList[category][index]
+      // );
+      // console.log();
+      console.log("item to replace", item);
+      let indexToReplace = -1;
+      let index = 0;
+      recipes[recipe].find((oldItem) => {
+        console.log("old item", oldItem);
+        console.log(index);
+        if (oldItem.item === item) {
+          indexToReplace = index;
+        }
+        index++;
+      });
+      console.log("index to replace", index);
+      console.log("recipes[recipe][index]", recipes[recipe][indexToReplace]);
+      recipes[recipe][indexToReplace].item = newItem;
+      // recipes[recipe][indexToReplace] = {
+      //   id: recipes[recipe][indexToReplace].id,
+      //   item: newItem,
+      //   type: recipes[recipe][indexToReplace].type,
+      // };
+      // console.log("editItem\n", groceryList);
 
       //If token is successfully verified, we can send the autorized data
       res.json({
@@ -214,29 +313,6 @@ app.put("/editItem", verifyToken, (req, res) => {
         // groceryList,
       });
       console.log("SUCCESS: Connected to /editItem");
-    }
-  });
-});
-
-// Design of protected route (needs JWT)
-// if token is valid, return protected data
-app.get("/protected", verifyToken, (req, res) => {
-  jwt.verify(req.token, secretKey, (err, decoded) => {
-    if (err) {
-      //If error send Forbidden (403)
-      console.log("ERROR: Could not connect to the protected route");
-      res.sendStatus(403);
-    } else {
-      const { id, name, groceryList } = decoded.user;
-      console.log(id, name, groceryList);
-      //If token is successfully verified, we can send the autorized data
-      res.json({
-        message: "Successful log in",
-        id,
-        name,
-        groceryList,
-      });
-      console.log("SUCCESS: Connected to protected route");
     }
   });
 });
