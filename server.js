@@ -86,12 +86,13 @@ app.get("/groceryList", verifyToken, (req, res) => {
       // access decoded user from db of users
       const foundUser = getUser(email);
       // const { groceryList } = decoded.user;
-      const { recipes } = foundUser;
-      // console.log("recipes\n", recipes);
+      const { recipes, groceryList } = foundUser;
+      console.log("recipes:", recipes);
+      console.log("groceryList", groceryList);
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successful log in",
-        // groceryList,
+        groceryList,
         recipes,
       });
       console.log("SUCCESS: Connected to /groceryList");
@@ -111,24 +112,17 @@ app.post("/addItem", verifyToken, (req, res) => {
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const {
-        // category,
-        item,
-        // quantity,
-        recipe,
-      } = req.body;
-      // console.log("addItem", addItem);
-      const { recipes } = foundUser;
-      // console.log("existing groceryList", groceryList);
-      // console.log("category in groceryList = ", category in groceryList);
-      // if (category in groceryList) {
-      //   groceryList[category].push({ item, quantity });
-      // } else {
-      //   groceryList[category] = [{ item, quantity }];
-      // }
+      const { category, item, recipe } = req.body;
+      const { recipes, groceryList } = foundUser;
+
+      console.log("category is", category);
+
+      // try to connect to witai
+
       var salt = bcrypt.genSaltSync(10);
       const itemHash = bcrypt.hashSync(item, salt);
 
+      // add item to recipes list (sorted by recipe)
       if (recipe.length !== 0) {
         if (!recipes[recipe]) {
           recipes[recipe] = [
@@ -167,6 +161,21 @@ app.post("/addItem", verifyToken, (req, res) => {
         }
       }
 
+      // add item to recipes list (sorted by recipe)
+      if (!groceryList[category]) {
+        groceryList[category] = [
+          {
+            id: itemHash,
+            item,
+          },
+        ];
+      } else {
+        groceryList[category].push({
+          id: itemHash,
+          item,
+        });
+      }
+
       // decoded.user = {
       //   ...decoded.user,
       //   groceryList,
@@ -201,7 +210,7 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
         recipe,
       } = req.body;
       // console.log("addItem", addItem);
-      const { recipes } = foundUser;
+      const { recipes, groceryList } = foundUser;
 
       // console.log("category to delete from", category, "index", index);
       // console.log("recipe to delete from", recipe, "index", index);
@@ -220,33 +229,42 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
       //   });
       //   recipes[deleteId.key].splice(deleteId.index, 1);
       // } else {
+      let idToDelete = -1;
 
       let indexToDelete = -1;
       recipes[recipe].find((oldItem, index) => {
-        console.log("oldItem.item", oldItem.item);
-        console.log("item to delete", item);
-        console.log("oldItem.item === item", oldItem.item === item);
+        // console.log("oldItem.item", oldItem.item);
+        // console.log("item to delete", item);
+        // console.log("oldItem.item === item", oldItem.item === item);
         if (oldItem.item === item) {
           console.log("INDEX", index);
           indexToDelete = index;
+          idToDelete = oldItem.id;
         }
       });
-      console.log("Inded after", indexToDelete);
+      // console.log("Inded after", indexToDelete);
       recipes[recipe].splice(indexToDelete, 1);
 
       if (recipes[recipe].length === 0) {
         delete recipes.recipe;
       }
-      //   const deleteId = { key: "", index: 0 };
-      //   Object.keys(groceryList).forEach((key) => {
-      //     key.find((item, index) => {
-      //       if (item.id === itemToDelete.id) {
-      //         deleteId.key = key;
-      //         deleteId.index = index;
-      //       }
-      //     });
-      //   });
-      //   groceryList[deleteId.key].splice(deleteId.index, 1);
+
+      // remove from category list: groceryList
+      const deleteId = { category: "", index: 0 };
+      Object.keys(groceryList).forEach((category) => {
+        groceryList[category].find((item, index) => {
+          // let index = 0;
+          if (item.id === idToDelete) {
+            deleteId.category = category;
+            deleteId.index = index;
+          }
+        });
+      });
+      groceryList[deleteId.category].splice(deleteId.index, 1);
+
+      if (groceryList[deleteId.category].length === 0) {
+        delete groceryList[deleteId.category];
+      }
       // }
 
       //If token is successfully verified, we can send the autorized data
@@ -279,7 +297,7 @@ app.put("/editItem", verifyToken, (req, res) => {
         recipe,
       } = req.body;
       // console.log("addItem", addItem);
-      const { recipes } = foundUser;
+      const { recipes, groceryList } = foundUser;
 
       // console.log(
       //   "groceryList[category][index]:\n",
@@ -288,25 +306,34 @@ app.put("/editItem", verifyToken, (req, res) => {
       // console.log();
       console.log("item to replace", item);
       let indexToReplace = -1;
+      let idToReplace = "";
       let index = 0;
       recipes[recipe].find((oldItem) => {
         console.log("old item", oldItem);
         console.log(index);
         if (oldItem.item === item) {
           indexToReplace = index;
+          idToReplace = oldItem.id;
         }
         index++;
       });
       console.log("index to replace", index);
       console.log("recipes[recipe][index]", recipes[recipe][indexToReplace]);
       recipes[recipe][indexToReplace].item = newItem;
-      // recipes[recipe][indexToReplace] = {
-      //   id: recipes[recipe][indexToReplace].id,
-      //   item: newItem,
-      //   type: recipes[recipe][indexToReplace].type,
-      // };
-      // console.log("editItem\n", groceryList);
 
+      indexToReplace = -1;
+      categoryToReplce = "";
+      Object.keys(groceryList).forEach((category) => {
+        index = 0;
+        groceryList[category].find((oldItem) => {
+          if (oldItem.id === idToReplace) {
+            indexToReplace = index;
+            categoryToReplce = category;
+          }
+          index++;
+        });
+      });
+      groceryList[categoryToReplce][indexToReplace].item = newItem;
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully edited item",
