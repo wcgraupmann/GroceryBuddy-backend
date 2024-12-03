@@ -5,7 +5,16 @@ const jwt = require("jsonwebtoken");
 
 const app = express();
 app.use(express.json()); // latest version of exressJS now comes with Body-Parser!
+
 app.use(cors());
+
+app.use(
+  cors({
+    origin: "http://localhost:3001", // Allowed origin
+    methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
+  })
+);
 
 const secretKey = "your_secret_key";
 
@@ -142,8 +151,8 @@ app.post("/addItem", verifyToken, (req, res) => {
           });
         }
       } else {
-        if (!recipes["misc"]) {
-          recipes["misc"] = [
+        if (!recipes["Miscellaneous Items"]) {
+          recipes["Miscellaneous Items"] = [
             {
               id: itemHash,
               item,
@@ -152,7 +161,7 @@ app.post("/addItem", verifyToken, (req, res) => {
             },
           ];
         } else {
-          recipes["misc"].push({
+          recipes["Miscellaneous Items"].push({
             id: itemHash,
             item,
             // quantity,
