@@ -278,7 +278,7 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
 });
 
 //
-// add item to delete item from user's grocery list
+// delete item from user's grocery list on checkout in app
 app.delete("/itemCheckout", verifyToken, (req, res) => {
   console.log("entered itemCheckout");
   jwt.verify(req.token, secretKey, (err, decoded) => {
@@ -327,10 +327,8 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
       // }
 
       //If token is successfully verified, we can send the autorized data
-      res.json({
+      res.status(200).json({
         message: "Successfully deleted item",
-        // deletedItem: itemToDelete,
-        // groceryList,
       });
       console.log("SUCCESS: Connected to /itemCheckout");
     }
