@@ -66,6 +66,7 @@ app.post("/register", (req, res) => {
     activity: 0,
     groceryList: {},
     recipes: {},
+    transactions: {},
   };
   users.push(user);
   // Generate JWT token
@@ -102,9 +103,10 @@ app.get("/groceryList", verifyToken, (req, res) => {
       // access decoded user from db of users
       const foundUser = getUser(email);
       // const { groceryList } = decoded.user;
-      const { recipes, groceryList } = foundUser;
+      const { recipes, groceryList, transactions } = foundUser;
       console.log("recipes:", recipes);
       console.log("groceryList", groceryList);
+      console.log("transactions\n\n", transactions)
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successful log in",
@@ -292,42 +294,103 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
       // access decoded user from db of users
       let foundUser = getUser(email);
       console.log("foundUser", foundUser);
-      const { itemId, category } = req.body;
-      // console.log("addItem", addItem);
-      const { recipes, groceryList } = foundUser;
+      const { itemId, category, dateId } = req.body;
+      const { recipes, groceryList, transactions } = foundUser;
 
-      // let idToDelete = -1;
-      let indexToDelete = -1;
-      groceryList[category].find((oldItem, index) => {
-        if (oldItem.itemId === itemId) {
-          indexToDelete = index;
+      // Remove item from groceryList
+      // let indexToDelete = -1;
+      // groceryList[category].forEach((oldItem, index) => {
+      //   if (oldItem.itemId === itemId) {
+      //     indexToDelete = index;
+      //   }
+      // });
+      // groceryList[category].splice(indexToDelete, 1);
+      // if (groceryList[category].length === 0) {
+      //   delete groceryList[category];
+      // }
+      const indexToDelete = groceryList[category].findIndex(
+        (oldItem) => oldItem.id === itemId
+      );
+      console.log("indexToDelete", indexToDelete, "in", category, "\n\n\n");
+      if (indexToDelete !== -1) {
+        groceryList[category].splice(indexToDelete, 1);
+        if (groceryList[category].length === 0) {
+          delete groceryList[category];
+        }
+      }
+
+      Object.keys(recipes).forEach((recipe) => {
+        const recipeIndex = recipes[recipe].findIndex(
+          (item) => item.id === itemId
+        );
+        if (recipeIndex !== -1) {
+          transactionItem = recipes[recipe][recipeIndex].item;
+          recipes[recipe].splice(recipeIndex, 1);
+
+          // If recipe is empty after deletion, remove it
+          if (recipes[recipe].length === 0) {
+            delete recipes[recipe];
+          }
         }
       });
-      groceryList[category].splice(indexToDelete, 1);
-      if (groceryList[category].length === 0) {
-        delete groceryList[category];
-      }
 
-      // remove from category list: groceryList
-      const deleteId = { recipe: "", index: 0 };
-      Object.keys(recipes).forEach((recipe) => {
-        recipes[recipe].find((item, index) => {
-          // let index = 0;
-          if (item.id === itemId) {
-            deleteId.recipe = recipe;
-            deleteId.index = index;
-          }
-        });
-      });
-      recipes[deleteId.recipe].splice(deleteId.index, 1);
+      // also need to remove item from recipes
+      // let transactionItem = "";
+      // const deleteId = { recipe: "", index: 0 };
 
-      if (recipes[deleteId.recipe].length === 0) {
-        delete recipes[deleteId.recipe];
-      }
+      // Object.keys(recipes).forEach((recipe) => {
+      //   const recipeIndex = recipes[recipe].findIndex(
+      //     (item) => item.id === itemId
+      //   );
+      //   if (recipeIndex !== -1) {
+      //     deleteId.recipe = recipe;
+      //     deleteId.index = recipeIndex;
+      //     transactionItem = recipes[recipe][recipeIndex].item;
+      //     // Remove item from recipe
+      //     recipes[recipe].splice(recipeIndex, 1);
+      //   }
+      // });
+
+      // // If recipe is empty after deletion, remove the recipe
+      // if (recipes[deleteId.recipe] && recipes[deleteId.recipe].length === 0) {
+      //   delete recipes[deleteId.recipe];
       // }
 
+      // Object.keys(recipes).forEach((recipe) => {
+      //   recipes[recipe].find((item, index) => {
+      //     // let index = 0;
+      //     if (item.id === itemId) {
+      //       deleteId.recipe = recipe;
+      //       deleteId.index = index;
+      //       transactionItem = item.item;
+      //     }
+      //   });
+      // });
+      // recipes[deleteId.recipe].splice(deleteId.index, 1);
+
+      // if (recipes[deleteId.recipe].length === 0) {
+      //   delete recipes[deleteId.recipe];
+      // }
+
+      // add deleted item to transactions
+      if (!transactions[dateId]) {
+        transactions[dateId] = [
+          {
+            item: transactionItem,
+            buyer: foundUser.name,
+          },
+        ];
+      } else {
+        transactions[dateId].push({
+          item: transactionItem,
+          buyer: foundUser.name,
+        });
+      }
+      console.log("TRANSACTIONS", transactions);
+      console.log("transactions length", transactions[dateId].length);
+
       //If token is successfully verified, we can send the autorized data
-      res.status(200).json({
+      res.json({
         message: "Successfully deleted item",
       });
       console.log("SUCCESS: Connected to /itemCheckout");
