@@ -10,13 +10,19 @@ app.use(cors());
 
 app.use(
   cors({
-    origin: "http://localhost:3001", // Allowed origin
+    origin: [
+      // Allowed origin
+      "http://localhost:3001", // For web app testing
+      "http://192.168.2.63:8081", // For React Native app using Expo
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   })
 );
 
 const secretKey = "your_secret_key";
+
+const witClientKey = "UX7IIBGQ7BONGFHX7P5QSGPZ3BFNOISA";
 
 // example user data with hashed passwords
 const users = [];
@@ -70,6 +76,7 @@ app.post("/register", (req, res) => {
 
 // endpoint for user authentication
 app.post("/signin", (req, res) => {
+  console.log("ENTERED SIGNIN");
   const { email, password } = req.body;
   const user = users.find((u) => u.email === email);
   // check that user exists and, if so, that the email matches the password
@@ -79,7 +86,7 @@ app.post("/signin", (req, res) => {
   user.activity++;
   console.log("successfully logged in");
   // Generate JWT token
-  const token = jwt.sign({ user }, secretKey, { expiresIn: "1h" });
+  const token = jwt.sign({ user }, secretKey, { expiresIn: "3h" });
   res.json({ token });
 });
 
@@ -221,23 +228,6 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
       // console.log("addItem", addItem);
       const { recipes, groceryList } = foundUser;
 
-      // console.log("category to delete from", category, "index", index);
-      // console.log("recipe to delete from", recipe, "index", index);
-
-      // if (category.length !== 0) {
-      //   const itemToDelete = groceryList[category][index];
-      //   groceryList[category].splice(index, 1);
-      //   const deleteId = { key: "", index: 0 };
-      //   Object.keys(recipes).forEach((key) => {
-      //     key.find((item, index) => {
-      //       if (item.id === itemToDelete.id) {
-      //         deleteId.key = key;
-      //         deleteId.index = index;
-      //       }
-      //     });
-      //   });
-      //   recipes[deleteId.key].splice(deleteId.index, 1);
-      // } else {
       let idToDelete = -1;
 
       let indexToDelete = -1;
@@ -251,11 +241,11 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
           idToDelete = oldItem.id;
         }
       });
-      // console.log("Inded after", indexToDelete);
+
       recipes[recipe].splice(indexToDelete, 1);
 
       if (recipes[recipe].length === 0) {
-        delete recipes.recipe;
+        delete recipes[recipe];
       }
 
       // remove from category list: groceryList
@@ -286,6 +276,67 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
     }
   });
 });
+
+//
+// add item to delete item from user's grocery list
+app.delete("/itemCheckout", verifyToken, (req, res) => {
+  console.log("entered itemCheckout");
+  jwt.verify(req.token, secretKey, (err, decoded) => {
+    if (err) {
+      //If error send Forbidden (403)
+      console.log("ERROR: Could not connect to the protected route");
+      res.sendStatus(403);
+    } else {
+      // console.log("decoded.user", decoded.user);
+      const { email } = decoded.user;
+      // access decoded user from db of users
+      let foundUser = getUser(email);
+      console.log("foundUser", foundUser);
+      const { itemId, category } = req.body;
+      // console.log("addItem", addItem);
+      const { recipes, groceryList } = foundUser;
+
+      // let idToDelete = -1;
+      let indexToDelete = -1;
+      groceryList[category].find((oldItem, index) => {
+        if (oldItem.itemId === itemId) {
+          indexToDelete = index;
+        }
+      });
+      groceryList[category].splice(indexToDelete, 1);
+      if (groceryList[category].length === 0) {
+        delete groceryList[category];
+      }
+
+      // remove from category list: groceryList
+      const deleteId = { recipe: "", index: 0 };
+      Object.keys(recipes).forEach((recipe) => {
+        recipes[recipe].find((item, index) => {
+          // let index = 0;
+          if (item.id === itemId) {
+            deleteId.recipe = recipe;
+            deleteId.index = index;
+          }
+        });
+      });
+      recipes[deleteId.recipe].splice(deleteId.index, 1);
+
+      if (recipes[deleteId.recipe].length === 0) {
+        delete recipes[deleteId.recipe];
+      }
+      // }
+
+      //If token is successfully verified, we can send the autorized data
+      res.json({
+        message: "Successfully deleted item",
+        // deletedItem: itemToDelete,
+        // groceryList,
+      });
+      console.log("SUCCESS: Connected to /itemCheckout");
+    }
+  });
+});
+//
 
 // add item to edit item from user's grocery list
 app.put("/editItem", verifyToken, (req, res) => {
