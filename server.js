@@ -329,8 +329,9 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
       // access decoded user from db of users
       let foundUser = getUser(email);
       console.log("foundUser", foundUser);
-      const { itemId, category, dateId } = req.body;
-      const { recipes, groceryList, transactions } = foundUser;
+      const { itemId, category, dateId, groupId } = req.body;
+      const { groceryGroups } = foundUser;
+      const { recipes, groceryList, transactions } = groceryGroups[groupId];
 
       // Remove item from groceryList
       // let indexToDelete = -1;
@@ -343,6 +344,7 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
       // if (groceryList[category].length === 0) {
       //   delete groceryList[category];
       // }
+
       const indexToDelete = groceryList[category].findIndex(
         (oldItem) => oldItem.id === itemId
       );
