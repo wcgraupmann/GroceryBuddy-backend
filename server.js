@@ -63,7 +63,15 @@ app.post("/register", (req, res) => {
     name,
     email,
     hash,
-    activity: 0,
+    // activity: 0,
+    groupIds: [],
+    groceryGroups: {},
+    // groceryList: {},
+    // recipes: {},
+    // transactions: {},
+  };
+  user.groupIds.push(name);
+  user.groceryGroups[name] = {
     groceryList: {},
     recipes: {},
     transactions: {},
@@ -91,8 +99,8 @@ app.post("/signin", (req, res) => {
   res.json({ token });
 });
 
-// fetch user's grocery list
-app.get("/groceryList", verifyToken, (req, res) => {
+// fetch groupIds
+app.get("/groupIds", verifyToken, (req, res) => {
   jwt.verify(req.token, secretKey, (err, decoded) => {
     if (err) {
       //If error send Forbidden (403)
@@ -100,18 +108,42 @@ app.get("/groceryList", verifyToken, (req, res) => {
       res.sendStatus(403);
     } else {
       const { email } = decoded.user;
-      // access decoded user from db of users
       const foundUser = getUser(email);
-      // const { groceryList } = decoded.user;
-      const { recipes, groceryList, transactions } = foundUser;
+      const { groupIds } = foundUser;
+
+      //If token is successfully verified, we can send the autorized data
+      res.json({
+        message: "Successful log in",
+        groupIds,
+      });
+      console.log("SUCCESS: Connected to /groceryList");
+    }
+  });
+});
+
+// fetch user's grocery list
+app.post("/groceryList", verifyToken, (req, res) => {
+  jwt.verify(req.token, secretKey, (err, decoded) => {
+    if (err) {
+      //If error send Forbidden (403)
+      console.log("ERROR: Could not connect to the protected route");
+      res.sendStatus(403);
+    } else {
+      const { email } = decoded.user;
+      const foundUser = getUser(email);
+      const { groceryGroups } = foundUser;
+      const { groupId } = req.body;
+      const { recipes, groceryList, transactions } = groceryGroups[groupId];
+
       console.log("recipes:", recipes);
       console.log("groceryList", groceryList);
-      console.log("transactions\n\n", transactions)
+      console.log("transactions\n\n", transactions);
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successful log in",
         groceryList,
         recipes,
+        transactions,
       });
       console.log("SUCCESS: Connected to /groceryList");
     }
@@ -130,8 +162,9 @@ app.post("/addItem", verifyToken, (req, res) => {
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const { category, item, recipe } = req.body;
-      const { recipes, groceryList } = foundUser;
+      const { category, item, recipe, groupId } = req.body;
+      const { groceryGroups } = foundUser;
+      const { recipes, groceryList } = groceryGroups[groupId];
 
       console.log("category is", category);
 
@@ -226,9 +259,11 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
         item,
         //  category,
         recipe,
+        groupId,
       } = req.body;
       // console.log("addItem", addItem);
-      const { recipes, groceryList } = foundUser;
+      const { groceryGroups } = foundUser;
+      const { recipes, groceryList } = groceryGroups[groupId];
 
       let idToDelete = -1;
 
@@ -416,9 +451,11 @@ app.put("/editItem", verifyToken, (req, res) => {
         //  quantity,
         newItem,
         recipe,
+        groupId,
       } = req.body;
       // console.log("addItem", addItem);
-      const { recipes, groceryList } = foundUser;
+      const { groceryGroups } = foundUser;
+      const { recipes, groceryList } = groceryGroups[groupId];
 
       // console.log(
       //   "groceryList[category][index]:\n",
