@@ -10,18 +10,20 @@ app.use(cors());
 
 app.use(
   cors({
-    origin: [
-      // Allowed origin
-      "http://localhost:3001", // For web app testing
-      "http://192.168.2.63:8081", // For React Native app using Expo
-    ],
+    // origin: [
+    //   // Allowed origin
+    //   "http://localhost:3001", // For web app testing
+    //   "http://192.168.2.63:8081", // For React Native app using Expo
+    //   "exp://192.168.1.27:8081",
+    // ],
+    origin: "*", // Allow all origins during development
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   })
 );
 
+// TODO: convert to environmental variables
 const secretKey = "your_secret_key";
-
 const witClientKey = "UX7IIBGQ7BONGFHX7P5QSGPZ3BFNOISA";
 
 // example user data with hashed passwords
@@ -96,7 +98,7 @@ app.post("/signin", (req, res) => {
   console.log("successfully logged in");
   // Generate JWT token
   const token = jwt.sign({ user }, secretKey, { expiresIn: "3h" });
-  res.json({ token });
+  res.json({ token, groupIds: user.groupIds });
 });
 
 // fetch groupIds
