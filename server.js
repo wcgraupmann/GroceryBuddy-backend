@@ -5,9 +5,7 @@ const jwt = require("jsonwebtoken");
 
 const app = express();
 app.use(express.json()); // latest version of exressJS now comes with Body-Parser!
-
 app.use(cors());
-
 app.use(
   cors({
     // origin: [
@@ -28,28 +26,29 @@ const witClientKey = "UX7IIBGQ7BONGFHX7P5QSGPZ3BFNOISA";
 
 // example user data with hashed passwords
 const users = [];
-// console.log(users);
 
-// function to find user in db
+// function to match a user to the email stored in user database
 const getUser = (email) => {
-  // console.log("db of users", users);
-  // console.log("users[0]", users[0]);
-  // console.log("users[0].email", users[0].email);
-  console.log(
-    "find method",
-    users.find((user) => user.email === email)
-  );
-
-  const u = users.find((user) => user.email === email);
-  return u;
+  return users.find((user) => user.email === email);
 };
 
-// endpoint to check existing users (dev only)
-app.get("/", (req, res) => {
-  res.json(users);
-});
+// HTTP ENDPOINTS:
 
-// endpoint for user registration
+/**
+ * @description Registers a new user and returns a JWT token upon successful registration.
+ *
+ * @route POST /register
+ *
+ * @param {Object} req.body - The request body containing:
+ *   @param {string} req.body.name - The user's name.
+ *   @param {string} req.body.email - The user's email address.
+ *   @param {string} req.body.password - The user's password.
+ *
+ * @returns {Object} JSON response containing:
+ *   @returns {string} token - A JWT token for authenticated access.
+ *
+ * @throws {400} If the email is already registered.
+ */
 app.post("/register", (req, res) => {
   const { email, name, password } = req.body;
   // check if email already exists
@@ -65,12 +64,8 @@ app.post("/register", (req, res) => {
     name,
     email,
     hash,
-    // activity: 0,
     groupIds: [],
     groceryGroups: {},
-    // groceryList: {},
-    // recipes: {},
-    // transactions: {},
   };
   user.groupIds.push(name);
   user.groceryGroups[name] = {
@@ -85,7 +80,21 @@ app.post("/register", (req, res) => {
   console.log("successfully registered new user");
 });
 
-// endpoint for user authentication
+/**
+ * @description Authenticates a user and returns a JWT token upon successful sign-in.
+ *
+ * @route POST /signin
+ *
+ * @param {Object} req.body - The request body containing:
+ *   @param {string} req.body.email - The user's email address.
+ *   @param {string} req.body.password - The user's password.
+ *
+ * @returns {Object} JSON response containing:
+ *   @returns {string} token - A JWT token for authenticated access.
+ *   @returns {Array} groupIds - An array of group IDs associated with the user.
+ *
+ * @throws {401} If authentication fails due to an invalid email or password.
+ */
 app.post("/signin", (req, res) => {
   console.log("ENTERED SIGNIN");
   const { email, password } = req.body;
@@ -101,7 +110,18 @@ app.post("/signin", (req, res) => {
   res.json({ token, groupIds: user.groupIds });
 });
 
-// fetch groupIds
+/**
+ * @description Retrieves the list of group IDs associated with the authenticated user.
+ *
+ * @route GET /groupIds
+ * @middleware verifyToken - Ensures the request contains a valid JWT token.
+ *
+ * @param {Object} req.headers.authorization - The JWT token required for authentication.
+ *
+ * @returns {Object} JSON response containing:
+ * - `groupIds`: An array of group IDs the user belongs to.
+ * - `message`: A success message confirming the request.
+ */
 app.get("/groupIds", verifyToken, (req, res) => {
   jwt.verify(req.token, secretKey, (err, decoded) => {
     if (err) {
@@ -123,7 +143,20 @@ app.get("/groupIds", verifyToken, (req, res) => {
   });
 });
 
-// fetch user's grocery list
+/**
+ * @description Retrieves the user's grocery data, including recipes, a sorted grocery list, and past transactions.
+ *
+ * @route POST /groceryList
+ * @middleware verifyToken - Ensures the request contains a valid JWT token.
+ *
+ * @param {string} req.body.groupId - The ID of the selected grocery group.
+ * @param {Object} req.headers.authorization - The JWT token required for authentication.
+ *
+ * @returns {Object} JSON response containing:
+ * - `recipes`: Grocery items sorted by recipe.
+ * - `groceryList`: Grocery items sorted by category.
+ * - `transactions`: Past transactions.
+ */
 app.post("/groceryList", verifyToken, (req, res) => {
   jwt.verify(req.token, secretKey, (err, decoded) => {
     if (err) {
@@ -152,7 +185,19 @@ app.post("/groceryList", verifyToken, (req, res) => {
   });
 });
 
-// add item to user's grocery list
+/**
+ * @description Adds a new item to the selected group's grocery lists, categorized by recipe and grocery category.
+ *
+ * @route POST /addItem
+ * @middleware verifyToken - Ensures the request contains a valid JWT token.
+ *
+ * @param {string} req.body.item - The name of the item to add.
+ * @param {string} req.body.category - The grocery category under which the item should be classified.
+ * @param {string} req.body.recipe - The recipe associated with the item (if applicable).
+ * @param {string} req.body.groupId - The group ID where the item should be added.
+ *
+ * @returns {Object} JSON response confirming the item was successfully added.
+ */
 app.post("/addItem", verifyToken, (req, res) => {
   jwt.verify(req.token, secretKey, (err, decoded) => {
     if (err) {
@@ -168,39 +213,37 @@ app.post("/addItem", verifyToken, (req, res) => {
       const { groceryGroups } = foundUser;
       const { recipes, groceryList } = groceryGroups[groupId];
 
-      console.log("category is", category);
-
-      // try to connect to witai
-
+      // create unique id for item
       var salt = bcrypt.genSaltSync(10);
       const itemHash = bcrypt.hashSync(item, salt);
 
       // add item to recipes list (sorted by recipe)
+      // check if item has an associated recipe
       if (recipe.length !== 0) {
+        // check if recipe object exists
         if (!recipes[recipe]) {
           recipes[recipe] = [
             {
               id: itemHash,
               item,
-              // quantity,
               type: "individual item",
             },
           ];
         } else {
+          // create new object for recipe
           recipes[recipe].push({
             id: itemHash,
             item,
-            // quantity,
             type: "individual item",
           });
         }
       } else {
+        // otherwise, add item to "misc" recipe
         if (!recipes["Miscellaneous Items"]) {
           recipes["Miscellaneous Items"] = [
             {
               id: itemHash,
               item,
-              // quantity,
               type: "recipe item",
             },
           ];
@@ -208,13 +251,13 @@ app.post("/addItem", verifyToken, (req, res) => {
           recipes["Miscellaneous Items"].push({
             id: itemHash,
             item,
-            // quantity,
             type: "recipe item",
           });
         }
       }
 
       // add item to recipes list (sorted by recipe)
+      // if category does not exist, create a new category object
       if (!groceryList[category]) {
         groceryList[category] = [
           {
@@ -223,22 +266,15 @@ app.post("/addItem", verifyToken, (req, res) => {
           },
         ];
       } else {
+        // otherwise, add to existing category object
         groceryList[category].push({
           id: itemHash,
           item,
         });
       }
 
-      // decoded.user = {
-      //   ...decoded.user,
-      //   groceryList,
-      // };
-      // console.log("decoded.user", decoded.user);
-      // console.log("user db[0]", users[0]);
-      //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully added item",
-        // groceryList,
       });
       console.log("SUCCESS: Connected to /addItem");
     }
@@ -246,6 +282,18 @@ app.post("/addItem", verifyToken, (req, res) => {
 });
 
 // add item to delete item from user's grocery list
+/**
+ * @description Deletes an item from the user's grocery list and associated recipe.
+ *
+ * @route DELETE /deleteItem
+ * @middleware verifyToken - Ensures the request contains a valid JWT token.
+ *
+ * @param {string} req.body.item - The name of the item to delete.
+ * @param {string} req.body.recipe - The recipe from which the item should be removed.
+ * @param {string} req.body.groupId - The grocery group where the item is stored.
+ *
+ * @returns {Object} JSON response confirming the item was successfully deleted.
+ */
 app.delete("/deleteItem", verifyToken, (req, res) => {
   jwt.verify(req.token, secretKey, (err, decoded) => {
     if (err) {
@@ -257,67 +305,70 @@ app.delete("/deleteItem", verifyToken, (req, res) => {
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const {
-        item,
-        //  category,
-        recipe,
-        groupId,
-      } = req.body;
-      // console.log("addItem", addItem);
+      const { item, recipe, groupId } = req.body;
       const { groceryGroups } = foundUser;
       const { recipes, groceryList } = groceryGroups[groupId];
 
+      // variables to store id and index of matching item
       let idToDelete = -1;
-
       let indexToDelete = -1;
+
+      // search recipe object for matching item
       recipes[recipe].find((oldItem, index) => {
-        // console.log("oldItem.item", oldItem.item);
-        // console.log("item to delete", item);
-        // console.log("oldItem.item === item", oldItem.item === item);
         if (oldItem.item === item) {
           console.log("INDEX", index);
           indexToDelete = index;
           idToDelete = oldItem.id;
         }
       });
-
+      // delete matching item with indexToDelete
       recipes[recipe].splice(indexToDelete, 1);
-
+      // if last item, delete recipe object
       if (recipes[recipe].length === 0) {
         delete recipes[recipe];
       }
 
-      // remove from category list: groceryList
+      // loop through category objects to find matching id using found idToDelete
+      // TODO: break out of loop to optimize
       const deleteId = { category: "", index: 0 };
       Object.keys(groceryList).forEach((category) => {
         groceryList[category].find((item, index) => {
-          // let index = 0;
           if (item.id === idToDelete) {
             deleteId.category = category;
             deleteId.index = index;
           }
         });
       });
+      // delete matching item with deleteId object's index value
       groceryList[deleteId.category].splice(deleteId.index, 1);
-
+      // if last item in category, delete category object
       if (groceryList[deleteId.category].length === 0) {
         delete groceryList[deleteId.category];
       }
-      // }
 
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully deleted item",
-        // deletedItem: itemToDelete,
-        // groceryList,
       });
       console.log("SUCCESS: Connected to /deleteItem");
     }
   });
 });
 
-//
-// delete item from user's grocery list on checkout in app
+/**
+ * @description Handles item checkout by removing it from the user's grocery list
+ *              and adding it to the transaction history under the specified date.
+ *
+ * @route DELETE /itemCheckout
+ * @middleware verifyToken - Ensures the request contains a valid JWT token.
+ *
+ * @param {string} req.body.itemId - The unique ID of the item to check out.
+ * @param {string} req.body.category - The category from which the item should be removed.
+ * @param {string} req.body.dateId - The date identifier for logging the transaction.
+ * @param {string} req.body.groupId - The grocery group from which the item is checked out.
+ *
+ * @returns {Object} JSON response confirming the item was successfully checked out.
+ */
 app.delete("/itemCheckout", verifyToken, (req, res) => {
   console.log("entered itemCheckout");
   jwt.verify(req.token, secretKey, (err, decoded) => {
@@ -326,43 +377,35 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
       console.log("ERROR: Could not connect to the protected route");
       res.sendStatus(403);
     } else {
-      // console.log("decoded.user", decoded.user);
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      console.log("foundUser", foundUser);
       const { itemId, category, dateId, groupId } = req.body;
       const { groceryGroups } = foundUser;
       const { recipes, groceryList, transactions } = groceryGroups[groupId];
 
-      // Remove item from groceryList
-      // let indexToDelete = -1;
-      // groceryList[category].forEach((oldItem, index) => {
-      //   if (oldItem.itemId === itemId) {
-      //     indexToDelete = index;
-      //   }
-      // });
-      // groceryList[category].splice(indexToDelete, 1);
-      // if (groceryList[category].length === 0) {
-      //   delete groceryList[category];
-      // }
-
+      // first need to remove item from sorted and recipe grocery lists
+      // use specified category to find id of matching item's index
       const indexToDelete = groceryList[category].findIndex(
         (oldItem) => oldItem.id === itemId
       );
-      console.log("indexToDelete", indexToDelete, "in", category, "\n\n\n");
       if (indexToDelete !== -1) {
+        // if index is found, remove from list
         groceryList[category].splice(indexToDelete, 1);
+
         if (groceryList[category].length === 0) {
+          // if last item in category is removed, delete category from list
           delete groceryList[category];
         }
       }
 
+      // search the recipe list for matching id
       Object.keys(recipes).forEach((recipe) => {
         const recipeIndex = recipes[recipe].findIndex(
           (item) => item.id === itemId
         );
         if (recipeIndex !== -1) {
+          // if index is found, remove from list
           transactionItem = recipes[recipe][recipeIndex].item;
           recipes[recipe].splice(recipeIndex, 1);
 
@@ -373,45 +416,9 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
         }
       });
 
-      // also need to remove item from recipes
-      // let transactionItem = "";
-      // const deleteId = { recipe: "", index: 0 };
-
-      // Object.keys(recipes).forEach((recipe) => {
-      //   const recipeIndex = recipes[recipe].findIndex(
-      //     (item) => item.id === itemId
-      //   );
-      //   if (recipeIndex !== -1) {
-      //     deleteId.recipe = recipe;
-      //     deleteId.index = recipeIndex;
-      //     transactionItem = recipes[recipe][recipeIndex].item;
-      //     // Remove item from recipe
-      //     recipes[recipe].splice(recipeIndex, 1);
-      //   }
-      // });
-
-      // // If recipe is empty after deletion, remove the recipe
-      // if (recipes[deleteId.recipe] && recipes[deleteId.recipe].length === 0) {
-      //   delete recipes[deleteId.recipe];
-      // }
-
-      // Object.keys(recipes).forEach((recipe) => {
-      //   recipes[recipe].find((item, index) => {
-      //     // let index = 0;
-      //     if (item.id === itemId) {
-      //       deleteId.recipe = recipe;
-      //       deleteId.index = index;
-      //       transactionItem = item.item;
-      //     }
-      //   });
-      // });
-      // recipes[deleteId.recipe].splice(deleteId.index, 1);
-
-      // if (recipes[deleteId.recipe].length === 0) {
-      //   delete recipes[deleteId.recipe];
-      // }
-
-      // add deleted item to transactions
+      // after item is removed from both lists: add item to transactions list
+      // item should be added to a date object within transactions
+      // create dateId object if it does not exist
       if (!transactions[dateId]) {
         transactions[dateId] = [
           {
@@ -425,10 +432,7 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
           buyer: foundUser.name,
         });
       }
-      console.log("TRANSACTIONS", transactions);
-      console.log("transactions length", transactions[dateId].length);
 
-      //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully deleted item",
       });
@@ -436,9 +440,20 @@ app.delete("/itemCheckout", verifyToken, (req, res) => {
     }
   });
 });
-//
 
-// add item to edit item from user's grocery list
+/**
+ * @description Edits an existing item in a user's grocery list.
+ *
+ * @route PUT /editItem
+ * @middleware verifyToken - Ensures the request contains a valid JWT token.
+ *
+ * @param {string} req.body.item - The name of the item to be edited.
+ * @param {string} req.body.newItem - The new item name to replace the old one.
+ * @param {string} req.body.recipe - The recipe where the item is found.
+ * @param {string} req.body.groupId - The ID of the grocery group to modify.
+ *
+ * @returns {Object} JSON response confirming the item was successfully edited.
+ */
 app.put("/editItem", verifyToken, (req, res) => {
   jwt.verify(req.token, secretKey, (err, decoded) => {
     if (err) {
@@ -446,27 +461,15 @@ app.put("/editItem", verifyToken, (req, res) => {
       console.log("ERROR: Could not connect to the protected route");
       res.sendStatus(403);
     } else {
-      console.log("decoded.user", decoded.user);
       const { email } = decoded.user;
       // access decoded user from db of users
       let foundUser = getUser(email);
-      const {
-        item,
-        //  quantity,
-        newItem,
-        recipe,
-        groupId,
-      } = req.body;
+      const { item, newItem, recipe, groupId } = req.body;
       // console.log("addItem", addItem);
       const { groceryGroups } = foundUser;
       const { recipes, groceryList } = groceryGroups[groupId];
 
-      // console.log(
-      //   "groceryList[category][index]:\n",
-      //   groceryList[category][index]
-      // );
-      // console.log();
-      console.log("item to replace", item);
+      //
       let indexToReplace = -1;
       let idToReplace = "";
       let index = 0;
@@ -479,9 +482,12 @@ app.put("/editItem", verifyToken, (req, res) => {
         }
         index++;
       });
-      console.log("index to replace", index);
-      console.log("recipes[recipe][index]", recipes[recipe][indexToReplace]);
+      // update item
       recipes[recipe][indexToReplace].item = newItem;
+      // create unique id for item
+      var salt = bcrypt.genSaltSync(10);
+      const newItemId = bcrypt.hashSync(newItem, salt);
+      recipes[recipe][indexToReplace].id = newItemId;
 
       indexToReplace = -1;
       categoryToReplce = "";
@@ -496,6 +502,7 @@ app.put("/editItem", verifyToken, (req, res) => {
         });
       });
       groceryList[categoryToReplce][indexToReplace].item = newItem;
+      groceryList[categoryToReplce][indexToReplace].id = newItemId;
       //If token is successfully verified, we can send the autorized data
       res.json({
         message: "Successfully edited item",
@@ -506,18 +513,35 @@ app.put("/editItem", verifyToken, (req, res) => {
   });
 });
 
-// Verify JWT token middleware
+/**
+ * Checks if the HTTP request includes a JWT token in the "Authorization" header.
+ * If the token is present and properly formatted, it stores the token in req.token
+ * and passes control to the next middleware.
+ *
+ * @param {Request} req - Express request object.
+ * @param {Response} res - Express response object.
+ * @param {Function} next - Function to proceed to the next middleware.
+ * @returns {Response|void} - Returns a 403 error if the token is missing, otherwise proceeds with the request.
+ */
 function verifyToken(req, res, next) {
-  console.log("verifying token");
+  // Extract the "Authorization" header from the request
   const header = req.headers["authorization"];
+
+  // If no authorization header is provided, return a 403 error
   if (!header) {
     return res.status(403).json({ error: "Token is required" });
   }
-  if (typeof header !== "undefined") {
-    const bearer = header.split(" ");
-    const token = bearer[1];
 
+  // Ensure the header is properly defined and formatted
+  if (typeof header !== "undefined") {
+    // Split the header value into "Bearer <token>"
+    const bearer = header.split(" ");
+    const token = bearer[1]; // Extract the actual token
+
+    // Store the token in the request object for later use
     req.token = token;
+
+    // Proceed to the next middleware or route handler
     next();
   } else {
     //If header is undefined return Forbidden (403)
