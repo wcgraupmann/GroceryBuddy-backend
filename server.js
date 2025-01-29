@@ -32,7 +32,9 @@ const getUser = (email) => {
   return users.find((user) => user.email === email);
 };
 
-// HTTP ENDPOINTS:
+/*
+ * HTTP ENDPOINTS
+ */
 
 /**
  * @description Registers a new user and returns a JWT token upon successful registration.
