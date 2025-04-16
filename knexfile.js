@@ -8,10 +8,10 @@ module.exports = {
       database: 'grocery_app',
     },
     migrations: {
-      directory: './migrations',
+      directory: './models/migrations',
     },
     seeds: {
-      directory: './seeds',
+      directory: './models/seeds',
     },
   },
   test: {
@@ -23,10 +23,10 @@ module.exports = {
       database: 'grocery_app_test',
     },
     migrations: {
-      directory: './migrations'  // Usually use the same migrations for test
+      directory: './models/migrations'  // Usually use the same migrations for test
     },
     seeds: {
-      directory: './seeds'
+      directory: './models/seeds'
     }
   }
 };
