@@ -47,17 +47,25 @@ module.exports = (db) => {
 
           // Create JWT token
           const token = jwt.sign(
-            { user_id: user.user_id, email: user.email },
+            { 
+              user_id: user.user_id, 
+              email: user.email,
+              name: user.name  // Including name can be useful
+            },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
           );
 
           return {
-            ...user,
-            personal_group: {
+            user: { 
+              user_id: user.user_id, 
+              email: user.email,
+              name: user.name  // Including name can be useful
+            },
+            groups: [{
               group_id: group.group_id,
               group_name: group.group_name
-            },
+            }],
             token
           };
         });
@@ -69,6 +77,51 @@ module.exports = (db) => {
         }
         console.error('Registration error:', err);
         return res.status(500).json({ error: 'Server error' });
+      }
+    },
+    loginUser: async (req, res) => {
+      let { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+
+      // Normalize email
+      email = email.trim().toLowerCase();
+
+      try {
+        const user = await db('users').where({ email }).first();
+        if (!user) {
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        // Get associated grocery groups
+        const groups = await db('grocery_groups')
+          .join('user_groups', 'grocery_groups.group_id', '=', 'user_groups.group_id')
+          .where('user_groups.user_id', '=', user.user_id)
+          .select('grocery_groups.group_id', 'grocery_groups.group_name');
+
+        // Create JWT token
+        const token = jwt.sign(
+          { 
+            user_id: user.user_id, 
+            email: user.email,
+            name: user.name
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: '1h', issuer: 'grocery-buddy'  }
+        );
+
+        // Remove password before sending
+        const { password: _, ...userWithoutPassword } = user;
+        return res.status(200).json({ user: userWithoutPassword, token, groups});
+      } catch (err) {
+        console.error('Login error:', err);
+        return res.status(500).json({ error: 'Authentication failed. Please try again.' });
       }
     }
   };

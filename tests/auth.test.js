@@ -5,9 +5,20 @@ const db = require('../models/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+/**
+ * Auth Controller Tests
+ * 
+ * Tests the authentication endpoints including user registration,
+ * login functionality, and all related edge cases.
+ * 
+ * Requirements:
+ * - Test database must be configured
+ * - Auth routes must be registered in the app
+ */
 describe('Auth Controller', () => {
-  // Before each test clear any data from related tables
+  // Clear database tables before each test
   beforeEach(async () => {
+    // Clear tables in reverse order of dependencies
     await db('grocery_lists').del();
     await db('user_groups').del();
     await db('grocery_groups').del();
@@ -25,15 +36,15 @@ describe('Auth Controller', () => {
         });
 
       expect(response.statusCode).toBe(201);
-      expect(response.body).toHaveProperty('user_id');
-      expect(response.body).toHaveProperty('name', 'Test User');
-      expect(response.body).toHaveProperty('email', 'test@example.com');
-      expect(response.body).not.toHaveProperty('password'); // Password should not be returned
+      expect(response.body.user).toHaveProperty('user_id');
+      expect(response.body.user).toHaveProperty('name', 'Test User');
+      expect(response.body.user).toHaveProperty('email', 'test@example.com');
+      expect(response.body.user).not.toHaveProperty('password'); // Password should not be returned
       
       // Verify personal group was created and returned
-      expect(response.body).toHaveProperty('personal_group');
-      expect(response.body.personal_group).toHaveProperty('group_id');
-      expect(response.body.personal_group).toHaveProperty('group_name', "Test User's Personal Group");
+      expect(response.body).toHaveProperty('groups');
+      expect(response.body.groups[0]).toHaveProperty('group_id');
+      expect(response.body.groups[0]).toHaveProperty('group_name', "Test User's Personal Group");
       
       // Verify the user was inserted in database
       const user = await db('users').where('email', 'test@example.com').first();
@@ -42,7 +53,7 @@ describe('Auth Controller', () => {
       
       // Verify the personal group was created
       const group = await db('grocery_groups')
-        .where('group_id', response.body.personal_group.group_id)
+        .where('group_id', response.body.groups[0].group_id)
         .first();
       expect(group).toBeTruthy();
       expect(group.group_name).toBe("Test User's Personal Group");
@@ -50,15 +61,15 @@ describe('Auth Controller', () => {
       // Verify user-group relationship
       const userGroup = await db('user_groups')
         .where({
-          user_id: response.body.user_id,
-          group_id: response.body.personal_group.group_id
+          user_id: response.body.user.user_id,
+          group_id: response.body.groups[0].group_id
         })
         .first();
       expect(userGroup).toBeTruthy();
       
       // Verify grocery list was created
       const groceryList = await db('grocery_lists')
-        .where('group_id', response.body.personal_group.group_id)
+        .where('group_id', response.body.groups[0].group_id)
         .first();
       expect(groceryList).toBeTruthy();
     });
@@ -73,10 +84,10 @@ describe('Auth Controller', () => {
         });
 
       expect(response.statusCode).toBe(201);
-      expect(response.body.email).toBe('test@example.com'); // Normalized
+      expect(response.body.user.email).toBe('test@example.com'); // Normalized
       
       // Verify in database too
-      const user = await db('users').where('user_id', response.body.user_id).first();
+      const user = await db('users').where('user_id', response.body.user.user_id).first();
       expect(user.email).toBe('test@example.com');
     });
 
