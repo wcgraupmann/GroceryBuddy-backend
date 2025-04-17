@@ -1,4 +1,6 @@
 const db = require('../models/db'); // <- your actual knex instance
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 // Global beforeAll - runs once before all tests
 beforeAll(async () => {
