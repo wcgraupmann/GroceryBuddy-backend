@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { createToken}  = require('../utils/helper');
 
 module.exports = (db) => {
   return {
@@ -11,6 +12,7 @@ module.exports = (db) => {
 
       // Normalize email
       email = email.trim().toLowerCase();
+      name = name.trim();
 
       try {
         const result = await db.transaction(async trx => {
@@ -46,26 +48,22 @@ module.exports = (db) => {
           });
 
           // Create JWT token
-          const token = jwt.sign(
-            { 
-              user_id: user.user_id, 
-              email: user.email,
-              name: user.name  // Including name can be useful
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-          );
+          // const token = jwt.sign(
+          //   { 
+          //     user_id: user.user_id, 
+          //     email: user.email,
+          //     name: user.name  // Including name can be useful
+          //   },
+          //   process.env.JWT_SECRET,
+          //   { expiresIn: '1h', issuer: 'grocery-buddy' }
+          // );
+          // Remove password before sending
+          const { password: _, ...userWithoutPassword } = user;
+          const token = await createToken(userWithoutPassword, jwt, process.env.JWT_SECRET);
 
           return {
-            user: { 
-              user_id: user.user_id, 
-              email: user.email,
-              name: user.name  // Including name can be useful
-            },
-            groups: [{
-              group_id: group.group_id,
-              group_name: group.group_name
-            }],
+            user: userWithoutPassword,
+            groups: [group],
             token
           };
         });
@@ -105,19 +103,22 @@ module.exports = (db) => {
           .where('user_groups.user_id', '=', user.user_id)
           .select('grocery_groups.group_id', 'grocery_groups.group_name');
 
-        // Create JWT token
-        const token = jwt.sign(
-          { 
-            user_id: user.user_id, 
-            email: user.email,
-            name: user.name
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: '1h', issuer: 'grocery-buddy'  }
-        );
-
         // Remove password before sending
         const { password: _, ...userWithoutPassword } = user;
+        const token = await createToken(userWithoutPassword, jwt, process.env.JWT_SECRET);
+
+        // Create JWT token
+        // const token = jwt.sign(
+        //   { 
+        //     user_id: user.user_id, 
+        //     email: user.email,
+        //     name: user.name
+        //   },
+        //   process.env.JWT_SECRET,
+        //   { expiresIn: '1h', issuer: 'grocery-buddy'  }
+        // );
+
+        
         return res.status(200).json({ user: userWithoutPassword, token, groups});
       } catch (err) {
         console.error('Login error:', err);

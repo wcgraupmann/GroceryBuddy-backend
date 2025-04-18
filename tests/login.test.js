@@ -16,6 +16,14 @@ describe('POST /auth/login',  () => {
           password: 'password123'
         });
     })
+
+    afterAll(async () => {
+    // Clear tables in reverse order of dependencies
+        await db('grocery_lists').del();
+        await db('user_groups').del();
+        await db('grocery_groups').del();
+        await db('users').del();
+    });
     
     it('should return 400 if fields are missing', async () => {
         const response = await request(app)
@@ -92,4 +100,7 @@ describe('POST /auth/login',  () => {
         expect(response.body.groups.length).toBeGreaterThan(0);
         expect(response.body.groups[0]).toHaveProperty('group_name', "Test User's Personal Group");
     });
+
+    // TODO: add tests to check if all user groups are returned (simulate a user joining multiple groups)
+
   });
