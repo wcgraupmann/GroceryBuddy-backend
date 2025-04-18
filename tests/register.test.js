@@ -31,14 +31,14 @@ describe('Auth Controller', () => {
         .post('/auth/register')
         .send({
           name: 'Test User',
-          email: 'test@example.com',
+          email: 'test1@example.com',
           password: 'password123'
         });
 
       expect(response.statusCode).toBe(201);
       expect(response.body.user).toHaveProperty('user_id');
       expect(response.body.user).toHaveProperty('name', 'Test User');
-      expect(response.body.user).toHaveProperty('email', 'test@example.com');
+      expect(response.body.user).toHaveProperty('email', 'test1@example.com');
       expect(response.body.user).not.toHaveProperty('password'); // Password should not be returned
       
       // Verify personal group was created and returned
@@ -47,7 +47,7 @@ describe('Auth Controller', () => {
       expect(response.body.groups[0]).toHaveProperty('group_name', "Test User's Personal Group");
       
       // Verify the user was inserted in database
-      const user = await db('users').where('email', 'test@example.com').first();
+      const user = await db('users').where('email', 'test1@example.com').first();
       expect(user).toBeTruthy();
       expect(user.name).toBe('Test User');
       
@@ -79,16 +79,16 @@ describe('Auth Controller', () => {
         .post('/auth/register')
         .send({
           name: 'Email User',
-          email: '  Test@EXAMPLE.com  ', // Uppercase with spaces
+          email: '  Test2@EXAMPLE.com  ', // Uppercase with spaces
           password: 'password123'
         });
 
       expect(response.statusCode).toBe(201);
-      expect(response.body.user.email).toBe('test@example.com'); // Normalized
+      expect(response.body.user.email).toBe('test2@example.com'); // Normalized
       
       // Verify in database too
       const user = await db('users').where('user_id', response.body.user.user_id).first();
-      expect(user.email).toBe('test@example.com');
+      expect(user.email).toBe('test2@example.com');
     });
 
     it('should return 400 when fields are missing', async () => {
@@ -113,7 +113,7 @@ describe('Auth Controller', () => {
       const hashedPassword = await bcrypt.hash('existingpass', 10);
       await db('users').insert({
         name: 'Existing User',
-        email: 'test@example.com',
+        email: 'test3@example.com',
         password: hashedPassword
       });
 
@@ -121,7 +121,7 @@ describe('Auth Controller', () => {
         .post('/auth/register')
         .send({
           name: 'New User',
-          email: 'test@example.com', // Same email
+          email: 'test3@example.com', // Same email
           password: 'password123'
         });
 

@@ -12,7 +12,7 @@ describe('POST /auth/login',  () => {
         .post('/auth/register')
         .send({
           name: 'Test User',
-          email: 'test@example.com',
+          email: 'testing@example.com',
           password: 'password123'
         });
     })
@@ -51,7 +51,7 @@ describe('POST /auth/login',  () => {
         const response = await request(app)
             .post('/auth/login')
             .send({
-                email: 'test@example.com',
+                email: 'testing@example.com',
                 password: 'wrongpassword'
             });
         expect(response.statusCode).toBe(401);
@@ -62,7 +62,7 @@ describe('POST /auth/login',  () => {
         const response = await request(app)
             .post('/auth/login')
             .send({
-                email: 'test@example.com',
+                email: 'testing@example.com',
                 password: 'password123'
             });
         expect(response.statusCode).toBe(200);
@@ -71,20 +71,20 @@ describe('POST /auth/login',  () => {
         expect(response.body.token).not.toBeNull();
         // Verify the token
         const decoded = jwt.verify(response.body.token, process.env.JWT_SECRET);
-        expect(decoded).toHaveProperty('email', 'test@example.com');
+        expect(decoded).toHaveProperty('email', 'testing@example.com');
     });
 
     it('should return the user info without password', async () => {
         const response = await request(app)
             .post('/auth/login')
             .send({
-                email: 'test@example.com',
+                email: 'testing@example.com',
                 password: 'password123'
             });
         expect(response.statusCode).toBe(200);
         expect(response.body).not.toHaveProperty('password');
         expect(response.body.user).toHaveProperty('name', 'Test User');
-        expect(response.body.user).toHaveProperty('email', 'test@example.com');
+        expect(response.body.user).toHaveProperty('email', 'testing@example.com');
         expect(response.body.user).toHaveProperty('user_id');
     });
 
@@ -92,7 +92,7 @@ describe('POST /auth/login',  () => {
         const response = await request(app)
             .post('/auth/login')
             .send({
-                email: 'test@example.com',
+                email: 'testing@example.com',
                 password: 'password123'
             });
         expect(response.body).toHaveProperty('groups');

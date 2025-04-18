@@ -47,25 +47,11 @@ module.exports = (db) => {
             group_id: group.group_id
           });
 
-          // Create JWT token
-          // const token = jwt.sign(
-          //   { 
-          //     user_id: user.user_id, 
-          //     email: user.email,
-          //     name: user.name  // Including name can be useful
-          //   },
-          //   process.env.JWT_SECRET,
-          //   { expiresIn: '1h', issuer: 'grocery-buddy' }
-          // );
           // Remove password before sending
           const { password: _, ...userWithoutPassword } = user;
           const token = await createToken(userWithoutPassword, jwt, process.env.JWT_SECRET);
 
-          return {
-            user: userWithoutPassword,
-            groups: [group],
-            token
-          };
+          return { user: userWithoutPassword, groups: [group], token };
         });
 
         return res.status(201).json(result);
@@ -82,7 +68,6 @@ module.exports = (db) => {
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
       }
-
       // Normalize email
       email = email.trim().toLowerCase();
 
@@ -107,18 +92,6 @@ module.exports = (db) => {
         const { password: _, ...userWithoutPassword } = user;
         const token = await createToken(userWithoutPassword, jwt, process.env.JWT_SECRET);
 
-        // Create JWT token
-        // const token = jwt.sign(
-        //   { 
-        //     user_id: user.user_id, 
-        //     email: user.email,
-        //     name: user.name
-        //   },
-        //   process.env.JWT_SECRET,
-        //   { expiresIn: '1h', issuer: 'grocery-buddy'  }
-        // );
-
-        
         return res.status(200).json({ user: userWithoutPassword, token, groups});
       } catch (err) {
         console.error('Login error:', err);
